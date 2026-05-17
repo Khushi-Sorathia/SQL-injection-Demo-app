@@ -13,7 +13,7 @@ export const scenarios = [
       </>
     ),
     defaultInputs: {
-      username: "' OR '1'='1",
+      username: "' OR '1'='1' -- ",
       password: "anything"
     },
     inputConfig: [
@@ -21,16 +21,16 @@ export const scenarios = [
       { name: 'password', label: 'Password', type: 'text', placeholder: 'Enter password' }
     ],
     suggestedPayloads: [
-      { payload: "' OR '1'='1", desc: "Classic auth bypass. Makes the WHERE clause always true." },
-      { payload: "admin' --", desc: "Logs in as admin and comments out the password check." }
+      { payload: "' OR '1'='1' -- ", desc: "Classic auth bypass. Makes the condition true and comments out the password check." },
+      { payload: "admin' -- ", desc: "Logs in as admin and comments out the password check." }
     ],
     vulnCode: `app.post('/api/scenario/a/vulnerable', async (req, res) => {
   const { username, password } = req.body;
 
   // DANGER: String concatenation allows SQL structure to be altered
   const rawQuery = \`SELECT * FROM users
-    WHERE username = '\${username}'
-    AND password = '\${password}'\`;
+    WHERE username LIKE '%\${username}%'
+    AND password LIKE '%\${password}%'\`;
 
   const result = await pool.query(rawQuery);
   res.json(result);
@@ -40,11 +40,11 @@ export const scenarios = [
 
   // SAFE: Parameterized query
   const query = \`SELECT * FROM users
-    WHERE username = $1
-    AND password = $2\`;
+    WHERE username LIKE $1
+    AND password LIKE $2\`;
 
   // The driver handles escaping and separating data from code
-  const result = await pool.query(query, [username, password]);
+  const result = await pool.query(query, [\`%\${username}%\`, \`%\${password}%\`]);
   res.json(result);
 });`
   },

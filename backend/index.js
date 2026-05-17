@@ -71,7 +71,7 @@ app.post('/api/scenario/a/vulnerable', async (req, res) => {
   const { username, password } = req.body;
 
   // Intentionally vulnerable string concatenation
-  const rawQuery = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
+  const rawQuery = `SELECT * FROM users WHERE username LIKE '%${username}%' AND password LIKE '%${password}%'`;
 
   const result = await executeQuery(rawQuery);
   res.json(result);
@@ -82,13 +82,13 @@ app.post('/api/scenario/a/secure', async (req, res) => {
   const { username, password } = req.body;
 
   // Secure parameterized query
-  const query = `SELECT * FROM users WHERE username = $1 AND password = $2`;
-  const params = [username, password];
+  const query = `SELECT * FROM users WHERE username LIKE $1 AND password LIKE $2`;
+  const params = [`%${username}%`, `%${password}%`];
 
   const result = await executeQuery(query, params);
 
   // Override query in result to show parameterization clearly
-  result.query = `SELECT * FROM users WHERE username = $1 AND password = $2 \n-- Parameters: [${username}, ${password}]`;
+  result.query = `SELECT * FROM users WHERE username LIKE $1 AND password LIKE $2 \n-- Parameters: [%${username}%, %${password}%]`;
   res.json(result);
 });
 

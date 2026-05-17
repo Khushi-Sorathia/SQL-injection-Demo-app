@@ -8,6 +8,21 @@ SQL Injection (SQLi) remains one of the most critical and widespread vulnerabili
 
 Many developers learn about SQL injection theoretically but lack a safe, practical environment to see exactly how these attacks manipulate the database and why defensive mechanisms effectively prevent them. This project provides a safe, ephemeral environment to test payloads against both vulnerable and secure implementations side-by-side.
 
+## Tech Stack
+
+| Layer | Choice | Notes |
+| :--- | :--- | :--- |
+| **Frontend** | React, Vite | Single Page Application for interactive execution and side-by-side view. |
+| **Styling** | Tailwind CSS | Utility-first CSS for rapid, responsive UI development. |
+| **Icons** | Lucide React | Clean, consistent SVG icon set for the interface. |
+| **API Client** | Axios | Promise-based HTTP client for fetching query results. |
+| **Backend** | Node.js, Express | Fast, unopinionated web framework for building the API endpoints. |
+| **Database Driver** | `pg` (node-postgres) | Non-blocking PostgreSQL client for Node.js. |
+| **Database** | PostgreSQL 15 | Relational database handling both vulnerable and parameterized queries. |
+| **Infrastructure** | Docker, Docker Compose | Isolated environment for easy startup and safe execution. |
+
+
+
 ## System Architecture
 
 The application is built using a containerized microservices architecture with three primary components:
@@ -72,6 +87,46 @@ The system is orchestrated using Docker Compose.
 - The **Frontend** serves a React single-page application.
 - The **Backend** is an Express Node.js server that handles API requests, executing queries against the database.
 - The **Database** is a PostgreSQL instance initialized with pre-populated dummy data and restricted user permissions.
+
+## Repository Layout
+
+```text
+SQL_injection/
+├── .gitignore               # Root git ignore
+├── docker-compose.yml       # Docker orchestration for db, backend, and frontend
+├── README.md                # Project documentation
+├── backend/                 # Node.js + Express backend API
+│   ├── .gitignore           # Backend git ignore
+│   ├── Dockerfile           # Backend container build instructions
+│   ├── index.js             # API routes, DB pool setup, query execution logic
+│   ├── package.json         # Node.js dependencies
+│   └── package-lock.json    # Dependency lockfile
+├── db/                      # Database initialization
+│   └── init.sql             # Schema, seed data, and reset_db() function
+└── frontend/                # React + Vite frontend application
+    ├── .gitignore           # Frontend git ignore
+    ├── Dockerfile           # Frontend container build instructions
+    ├── eslint.config.js     # ESLint configuration
+    ├── index.html           # SPA entry HTML
+    ├── package.json         # Frontend dependencies and scripts
+    ├── postcss.config.js    # PostCSS configuration for Tailwind
+    ├── tailwind.config.js   # Tailwind CSS tokens and themes
+    ├── vite.config.js       # Vite bundler configuration
+    ├── public/              # Static public assets
+    └── src/                 # Application source code
+        ├── App.jsx          # Main application component and routing state
+        ├── App.css          # App-specific styles
+        ├── index.css        # Tailwind base imports
+        ├── main.jsx         # React DOM render entrypoint
+        ├── assets/          # Images and SVG assets
+        ├── components/      # Reusable UI elements
+        │   └── ResultPanel.jsx # Displays query results, times, and errors
+        ├── data/            # Static data and configs
+        │   └── scenarios.jsx   # SQL injection scenario definitions and payloads
+        └── pages/           # Page level components
+            ├── LandingPage.jsx     # Scenario selection screen
+            └── ScenarioWorkspace.jsx # Interactive side-by-side SQL execution environment
+```
 
 ## Whole Codebase Workflow
 
@@ -145,3 +200,5 @@ The system is orchestrated using Docker Compose.
   - **`pages/`**
     - **`LandingPage.jsx`**: Renders the welcome screen and maps over the available scenarios to display selection cards.
     - **`ScenarioWorkspace.jsx`**: The interactive interface where users input payloads, trigger API calls, and view side-by-side execution results and backend code snippets.
+
+
