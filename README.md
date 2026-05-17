@@ -1,145 +1,147 @@
-# 🛡️ SQL Injection Interactive Sandbox & Educational Demo
+# SQL Injection Interactive Sandbox and Educational Demo
 
-[![React](https://img.shields.io/badge/React-19.2-blue.svg?style=flat&logo=react)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-8.0-646CFF.svg?style=flat&logo=vite)](https://vitejs.dev/)
-[![Node.js](https://img.shields.io/badge/Node.js-Express-339933.svg?style=flat&logo=node.js)](https://nodejs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Containerized-336791.svg?style=flat&logo=postgresql)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=flat&logo=docker)](https://www.docker.com/)
+An educational, interactive web application designed to teach developers, QA engineers, and cybersecurity students about SQL Injection (SQLi) vulnerabilities through hands-on, side-by-side practical learning.
 
-> An educational, interactive web application designed to teach developers, QA engineers, and cybersecurity students about SQL Injection (SQLi) vulnerabilities through hands-on, side-by-side practical learning.
+## Problem Statement
 
----
+SQL Injection (SQLi) remains one of the most critical and widespread vulnerabilities in modern web applications. It occurs when an application improperly concatenates user input directly into database queries, allowing malicious actors to alter the query's underlying structure. This can lead to unauthorized data access, authentication bypass, data loss, or full database compromise.
 
-## 🎯 The Problem
+Many developers learn about SQL injection theoretically but lack a safe, practical environment to see exactly how these attacks manipulate the database and why defensive mechanisms effectively prevent them. This project provides a safe, ephemeral environment to test payloads against both vulnerable and secure implementations side-by-side.
 
-**SQL Injection (SQLi)** remains one of the most critical and widespread vulnerabilities in modern web applications. It occurs when an application improperly concatenates user input directly into database queries, allowing malicious actors to alter the query's underlying structure. This can lead to:
-- 🔓 Unauthorized data access and authentication bypass
-- 💸 Data loss or exfiltration
-- 💥 Full database compromise
+## System Architecture
 
-Many developers learn about SQL injection theoretically but lack a safe, practical environment to see exactly *how* these attacks manipulate the database and *why* defensive mechanisms effectively prevent them.
-
-## 💡 The Solution
-
-The **SQL Injection Interactive Demo** bridges this gap by providing an isolated, local sandbox where users can execute benign injection payloads and observe the results in real-time. 
-
-Crucially, the application provides a split-screen **side-by-side comparison** of:
-- 🔴 **Vulnerable Code**: Using dangerous string concatenation.
-- 🟢 **Secure Code**: Using parameterized queries/prepared statements and proper validation.
-
-This approach makes the abstract concepts of SQLi concrete, visible, and easy to understand.
-
----
-
-## 🚀 How It Works
-
-The application provides an intuitive split-screen interface where users select a specific attack scenario.
-
-1. **Input Payload**: The user inputs a classic SQLi payload (e.g., `' OR '1'='1`) into a simulated UI element (like a login form).
-2. **Execution**: The user can execute this payload against a vulnerable backend endpoint, a secure backend endpoint, or **both simultaneously**.
-3. **Real-time Visualization**: The interface clearly displays:
-   - 🔍 The **exact raw SQL query** constructed by the backend before hitting the database.
-   - ⏱️ The **execution time** (useful for blind SQLi).
-   - 📊 The **data returned** from the database (or the database error encountered).
-4. **Direct Comparison**: By comparing the vulnerable execution (which typically succeeds in the attack) and the secure execution (which treats the payload as a literal string or rejects it), users immediately grasp the value of parameterized queries.
-
----
-
-## 📚 Scenarios Covered
-
-The interactive sandbox currently covers the following classic SQLi vectors:
-
-*   **Scenario A: Authentication Bypass (Classic In-Band)** 
-    *   Bypassing login checks using tautologies (e.g., `' OR '1'='1 --`).
-*   **Scenario B: Data Exfiltration (UNION-based Search)**
-    *   Stealing data from unrelated tables via vulnerable search inputs (e.g., `%' UNION SELECT username, password FROM users--`).
-*   **Scenario C: Error-based / Blind SQLi**
-    *   Exploiting unvalidated numeric inputs to force errors or alter application logic. Showcases proper integer validation alongside parameterized queries.
-
----
-
-## 🔒 Safe Environment Architecture
-
-The application is explicitly designed to be completely ephemeral and secure for local execution.
-
-*   **Containerized Isolation**: Runs entirely in isolated Docker containers.
-*   **Principle of Least Privilege**: The database user executing the vulnerable queries (`demouser`) has heavily restricted permissions (e.g., `SELECT` only on specific tables).
-*   **One-Click Reset**: Even if a user attempts a destructive attack or mutates state, the application provides an instant **"Reset Database"** button (handled via a separate secure `admin` pool) to restore the sandbox to its initial pristine state.
-
-### System Architecture Diagram
+The application is built using a containerized microservices architecture with three primary components:
 
 ```mermaid
-graph TD
-    subgraph Frontend [User Interface React + Vite]
-        UI[Interactive Split-Screen UI]
-        Scenario[Scenario Selection]
-        Payload[Payload Input]
-        Display[Side-by-Side Results Display]
-        UI --> Scenario
-        UI --> Payload
-        UI --> Display
+flowchart TD
+    User([User / Attacker]) -->|Inputs SQLi Payload via UI| ClientApp
+
+    subgraph Docker Compose Network
+        subgraph ClientApp ["Frontend React Container (Port 5173)"]
+            UI["React UI (Landing Page & Workspace)"]
+            Axios["Axios HTTP Client"]
+            Scenarios[("Scenario Configurations (scenarios.jsx)")]
+            
+            UI <-->|Loads configs| Scenarios
+            UI -->|Triggers requests| Axios
+        end
+
+        subgraph BackendAPI ["Backend Node.js Container (Port 3000)"]
+            Router["Express.js Server"]
+            
+            VulnRoutes["Vulnerable Endpoints"]
+            SecRoutes["Secure Endpoints"]
+            AdminRoutes["Admin /Reset Endpoint"]
+            
+            Router --> VulnRoutes
+            Router --> SecRoutes
+            Router --> AdminRoutes
+            
+            VulnRoutes -->|Raw String Concatenation| QueryUtil["executeQuery() Wrapper"]
+            SecRoutes -->|Parameterized Queries| QueryUtil
+            
+            PoolStandard{"Standard Pool (demouser)"}
+            PoolAdmin{"Admin Pool (postgres user)"}
+            
+            QueryUtil --> PoolStandard
+            AdminRoutes --> PoolAdmin
+        end
+
+        subgraph DatabaseContainer ["PostgreSQL Container (Port 5432)"]
+            Auth{"Role-based Access Control"}
+            
+            PublicSchema["Public Schema"]
+            BackupSchema["Backup Schema (For Reset)"]
+            
+            Tables[("Tables: users, products, secret_data")]
+            ResetFunc[["reset_db() Function"]]
+            
+            Auth --> PublicSchema
+            PublicSchema --> Tables
+            PublicSchema --> ResetFunc
+            ResetFunc -.->|Truncates & Restores| BackupSchema
+        end
     end
 
-    subgraph Backend [Backend API Node.js + Express]
-        API_Vuln[Vulnerable Endpoints\nString Concatenation]
-        API_Sec[Secure Endpoints\nParameterized Queries / Validation]
-    end
-
-    subgraph Database [PostgreSQL Sandbox Container]
-        DB_User[Restricted 'demouser']
-        DB_Admin[Admin 'postgres'\nFor DB Reset Only]
-    end
-
-    Payload -- "HTTP POST/GET" --> API_Vuln
-    Payload -- "HTTP POST/GET" --> API_Sec
-    
-    API_Vuln -- "Raw SQL Execution" --> DB_User
-    API_Sec -- "Parameterized Query" --> DB_User
-    
-    UI -- "Reset Request" --> DB_Admin
+    Axios -->|HTTP GET/POST| Router
+    PoolStandard -->|Restricted SQL Execution| Auth
+    PoolAdmin -->|Privileged Execution| Auth
 ```
 
----
+The system is orchestrated using Docker Compose. 
+- The **Frontend** serves a React single-page application.
+- The **Backend** is an Express Node.js server that handles API requests, executing queries against the database.
+- The **Database** is a PostgreSQL instance initialized with pre-populated dummy data and restricted user permissions.
 
-## 🛠️ Built With
+## Whole Codebase Workflow
 
-*   **Frontend**: React (v19), Vite, Tailwind CSS, Axios, Lucide React (Icons)
-*   **Backend**: Node.js, Express, `pg` (node-postgres), CORS
-*   **Database**: PostgreSQL (Docker Containerized)
+1. **Initialization:** Docker Compose spins up the Database, Backend, and Frontend containers. The Database container runs an initialization script that creates the schema, populates data, and sets up a secure reset mechanism.
+2. **User Interaction:** The user accesses the React Frontend on port 5173. They are presented with a landing page listing educational scenarios.
+3. **Scenario Selection:** Upon selecting a scenario, the user enters the workspace where they can input a payload.
+4. **Execution:** The user can execute the payload against a "Vulnerable" endpoint, a "Secure" endpoint, or both simultaneously.
+5. **Processing:** The React app sends the respective GET/POST requests to the Node.js Backend.
+6. **Querying:** The Backend uses the input to construct SQL queries. The vulnerable endpoints use unsafe string concatenation, while the secure endpoints use parameterized queries.
+7. **Database Interaction:** The Backend connects to the PostgreSQL Database and executes the queries.
+8. **Response:** The Backend measures execution time, catches any SQL errors, retrieves the rows, and sends a JSON response back to the Frontend.
+9. **Display:** The Frontend renders the results side-by-side, displaying the raw SQL executed, the resulting data table or error message, and the backend code snippets for comparison.
 
----
+## Backend and Frontend Whole Workflow
 
-## 🚦 Getting Started
+### Frontend Workflow
+- **State Management:** The main `App` component manages whether the user is on the `LandingPage` or a specific `ScenarioWorkspace`.
+- **Data Source:** Scenario configurations (titles, descriptions, vulnerable/secure code snippets, suggested payloads) are statically defined in `scenarios.jsx`.
+- **Payload Input:** The `ScenarioWorkspace` dynamically renders input fields based on the selected scenario's configuration.
+- **API Communication:** Using Axios, the frontend sends user inputs to the backend API (`/api/scenario/:id/vulnerable` and `/api/scenario/:id/secure`).
+- **Result Visualization:** The `ResultPanel` component receives the response and visualizes the raw SQL query, the execution time, and either a table of returned records or a database error block.
 
-### Prerequisites
+### Backend Workflow
+- **Connection Pools:** The backend establishes two database connection pools: a standard pool using a restricted `demouser` for executing scenario queries, and an admin pool for the database reset functionality.
+- **Routing:** Express routes are defined for each scenario (A, B, and C) with paired `/vulnerable` and `/secure` endpoints.
+- **Vulnerable Implementations:** In endpoints like `/api/scenario/a/vulnerable`, user input is directly concatenated into a SQL string.
+- **Secure Implementations:** In endpoints like `/api/scenario/a/secure`, user input is passed as parameterized arrays to the database driver, preventing structural manipulation of the query.
+- **Query Execution Wrapper:** A utility function `executeQuery` wraps the Postgres queries to catch errors gracefully and measure query execution time in milliseconds, returning a standardized response object to the frontend.
+- **Database Reset:** An admin endpoint `/api/admin/reset` calls a stored PostgreSQL function to instantly restore the database tables to their original state if a user drops or modifies them.
 
-Ensure you have the following installed on your machine:
-*   [Docker](https://www.docker.com/get-started)
-*   [Docker Compose](https://docs.docker.com/compose/install/)
+## Directory and File Structure Breakdown
 
-### Running the Application
+### Root Directory
+- **`.git/`**: Version control directory containing Git repository data.
+- **`.gitignore`**: Specifies files and directories that Git should ignore in the root.
+- **`docker-compose.yml`**: The orchestration file that defines the three services (db, backend, frontend), their environment variables, port mappings, and volume mounts.
+- **`README.md`**: The main documentation file (this file) describing the project, architecture, and workflows.
 
-> **🚨 CRITICAL DEPLOYMENT RULE:** This application is intentionally vulnerable to critical security flaws by design. It **MUST NOT** be deployed to the public internet or production environments. It is meant exclusively for **local execution and education**.
+### `db/` - Database Configuration Directory
+- **`init.sql`**: The initialization script that runs when the PostgreSQL container starts. It creates the `sqli_demo` database, creates users (`demouser`), sets up tables (`users`, `products`, `secret_data`), populates them with initial records, and creates a `backup_schema` and `reset_db()` function to allow easy resetting of the environment.
 
-1. **Clone the repository** to your local machine:
-   ```bash
-   git clone <your-repository-url>
-   cd "SQL injection"
-   ```
+### `backend/` - Node.js Express Server Directory
+- **`.gitignore`**: Specifies files and directories that Git should ignore in the backend.
+- **`Dockerfile`**: Instructions for building the backend Docker image.
+- **`index.js`**: The core application logic. It initializes the Express server, sets up PostgreSQL connection pools, defines the vulnerable and secure API endpoints for all scenarios, and includes the execution timer and error-catching wrapper.
+- **`package.json`**: Defines Node.js dependencies (e.g., express, pg, cors) and project scripts.
+- **`package-lock.json`**: Locks down the exact versions of backend dependencies.
 
-2. **Start the application** using Docker Compose from the root directory:
-   ```bash
-   docker compose up --build
-   ```
-   *(Note: Depending on your docker version, you may need to use `docker-compose up --build`)*
-
-3. **Access the Sandbox**: Once all services are running and the database is initialized, open your web browser and navigate to:
-   ```
-   http://localhost:5173
-   ```
-
-4. **Shutdown and Cleanup**: To stop the application and clean up containers, press `Ctrl+C` in your terminal where the containers are running, and then optionally run:
-   ```bash
-   docker compose down -v
-   ```
-   *(The `-v` flag ensures the ephemeral database volume is also removed).*
+### `frontend/` - React Client Application Directory
+- **`.gitignore`**: Specifies files and directories that Git should ignore in the frontend.
+- **`Dockerfile`**: Instructions for building the frontend Docker image using Vite.
+- **`README.md`**: Documentation specific to the frontend application.
+- **`eslint.config.js`**: Configuration file for ESLint to enforce code quality and styling rules.
+- **`index.html`**: The main HTML template where the React application is injected.
+- **`package.json`**: Defines frontend dependencies (e.g., react, axios, lucide-react) and scripts.
+- **`package-lock.json`**: Locks down the exact versions of frontend dependencies.
+- **`postcss.config.js`**: Configuration file for PostCSS, required by Tailwind.
+- **`tailwind.config.js`**: Configuration file for the Tailwind CSS framework styling.
+- **`vite.config.js`**: Configuration for the Vite build tool and development server.
+- **`public/`**: Directory containing static assets that are served directly.
+- **`src/`**: Directory containing the source code for the React application.
+  - **`App.css`**: Application-specific stylesheet.
+  - **`App.jsx`**: The root component that maintains the state to switch between the landing page and the active scenario workspace.
+  - **`index.css`**: Global stylesheet containing Tailwind directives.
+  - **`main.jsx`**: The entry point for React that renders the `App` component into the DOM.
+  - **`assets/`**: Directory for images, icons, and other assets used in the source code.
+  - **`components/`**
+    - **`ResultPanel.jsx`**: A reusable component that formats and displays the query execution results, handling loading states, errors, data tables, and raw query visualization.
+  - **`data/`**
+    - **`scenarios.jsx`**: A configuration file storing the metadata, explanations, default inputs, suggested payloads, and code snippets for each of the SQL injection scenarios.
+  - **`pages/`**
+    - **`LandingPage.jsx`**: Renders the welcome screen and maps over the available scenarios to display selection cards.
+    - **`ScenarioWorkspace.jsx`**: The interactive interface where users input payloads, trigger API calls, and view side-by-side execution results and backend code snippets.
